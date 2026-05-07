@@ -353,7 +353,7 @@
                 playMode: 0,
                 enableHTTPS: 1,
                 encryptedFields: 'secret',
-                layout: '2x2',
+                layout: '3x3',
                 showToolbar: 1,
                 buttonIDs: '0,16,256,257,258,259,260,512,513,514,515,516,517'
             })
@@ -394,7 +394,7 @@
             funcName: 'startPreview',
             argument: JSON.stringify({
                 cameraIndexCode: cameraIndexCode,
-                streamMode: 0,
+                streamMode: 1,
                 transMode: 1
             })
         }).then(function(oData) {
@@ -474,14 +474,14 @@ function setPluginLayout(num, btn) {
         oWebControl.JS_RequestInterface({ funcName: 'stopAllPreview' });
         // 为前4个窗口选择监控点
         var wndIndex = 0;
-        for (var i = 0; i < allCameras.length && wndIndex < 4; i++) {
+        for (var i = 0; i < allCameras.length && wndIndex < 9; i++) {
             (function(idx, camera) {
                 setTimeout(function() {
                     oWebControl.JS_RequestInterface({
                         funcName: 'startPreview',
                         argument: JSON.stringify({
                             cameraIndexCode: camera.cameraIndexCode,
-                            streamMode: 0,
+                            streamMode: 1,
                             transMode: 1,
                             wndIndex: idx
                         })
