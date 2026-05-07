@@ -16,7 +16,6 @@
         
         .sidebar { width: 280px; background: #16213e; border-right: 1px solid #0f3460; overflow-y: auto; }
         /* 云台控制 */
-                /* 云台控制 */
         .ptz-control { padding: 15px; border-top: 1px solid #0f3460; }
         .ptz-control h3 { font-size: 13px; color: #00d9ff; margin-bottom: 10px; }
         .ptz-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; max-width: 150px; margin: 0 auto; }
@@ -111,29 +110,28 @@
                     <input type="text" class="search-input" placeholder="搜索监控点..." id="searchCamera" oninput="filterCameras()">
                 </div>
                 <div class="camera-list" id="cameraList"></div>
+                <div class="ptz-control">
+                    <h3>云台控制</h3>
+                    <div class="ptz-grid">
+                        <div></div>
+                        <button class="ptz-btn" onmousedown="ptzControl(1)" onmouseup="ptzStop()" onmouseleave="ptzStop()">上</button>
+                        <div></div>
+                        <button class="ptz-btn" onmousedown="ptzControl(3)" onmouseup="ptzStop()" onmouseleave="ptzStop()">左</button>
+                        <div class="ptz-center">云台</div>
+                        <button class="ptz-btn" onmousedown="ptzControl(4)" onmouseup="ptzStop()" onmouseleave="ptzStop()">右</button>
+                        <div></div>
+                        <button class="ptz-btn" onmousedown="ptzControl(2)" onmouseup="ptzStop()" onmouseleave="ptzStop()">下</button>
+                        <div></div>
+                    </div>
+                    <div class="ptz-zoom">
+                        <button onmousedown="ptzControl(9)" onmouseup="ptzStop()" onmouseleave="ptzStop()">放大</button>
+                        <button onmousedown="ptzControl(10)" onmouseup="ptzStop()" onmouseleave="ptzStop()">缩小</button>
+                    </div>
+                    <div class="ptz-hint" id="ptzHint">请选择摄像机</div>
+                </div>
             </div>
             
-                        <div class="ptz-control">
-                <h3>云台控制</h3>
-                <div class="ptz-grid">
-                    <div></div>
-                    <button class="ptz-btn" onmousedown="ptzControl(1)" onmouseup="ptzStop()" onmouseleave="ptzStop()">up</button>
-                    <div></div>
-                    <button class="ptz-btn" onmousedown="ptzControl(3)" onmouseup="ptzStop()" onmouseleave="ptzStop()">left</button>
-                    <div class="ptz-center">PTZ</div>
-                    <button class="ptz-btn" onmousedown="ptzControl(4)" onmouseup="ptzStop()" onmouseleave="ptzStop()">right</button>
-                    <div></div>
-                    <button class="ptz-btn" onmousedown="ptzControl(2)" onmouseup="ptzStop()" onmouseleave="ptzStop()">down</button>
-                    <div></div>
-                </div>
-                <div class="ptz-zoom">
-                    <button onmousedown="ptzControl(9)" onmouseup="ptzStop()" onmouseleave="ptzStop()">zoom+</button>
-                    <button onmousedown="ptzControl(10)" onmouseup="ptzStop()" onmouseleave="ptzStop()">zoom-</button>
-                </div>
-                <div class="ptz-hint">select camera first</div>
-            </div>
-
-<div class="video-area">
+            <div class="video-area">
                 <div class="toolbar">
                     <span style="color:#888;font-size:13px;">画面：</span>
                     <button class="btn-layout active" onclick="setPluginLayout(1, this)">单画面</button>
@@ -404,7 +402,10 @@
     function selectCamera(cameraIndexCode, cameraName) {
         currentCameraIndexCode = cameraIndexCode;
             var cam = allCameras.find(function(c) { return c.cameraIndexCode === cameraIndexCode; });
-            if (cam) { currentPTZCamera = cam; setPTZCamera(cam); }
+            if (cam) { 
+                var hint = document.getElementById('ptzHint');
+                if (hint) hint.textContent = '已选: ' + cam.cameraName;
+            }
         
         // 更新列表选中状态
         renderCameraList(allCameras);
@@ -561,25 +562,20 @@ function setPluginLayout(num, btn) {
         }
     });
     
-    var currentPTZCamera = null;
-    
     function ptzControl(direction) {
         if (!oWebControl) { log('plugin not init'); return; }
-        if (!currentPTZCamera && allCameras.length > 0) { currentPTZCamera = allCameras[0]; }
-        if (!currentPTZCamera) { log('select camera first'); return; }
-        log('ptz: dir=' + direction);
+        if (!currentCameraIndexCode) { log('请先选择摄像机'); return; }
+        log('ptz: dir=' + direction + ' camera=' + currentCameraIndexCode);
         oWebControl.JS_RequestInterface({
             funcName: 'ptzControl',
-            argument: JSON.stringify({ cameraIndexCode: currentPTZCamera.cameraIndexCode, direction: direction, speed: 1, presetIndex: 0 })
+            argument: JSON.stringify({ cameraIndexCode: currentCameraIndexCode, direction: direction, speed: 1, presetIndex: 0 })
         }).then(function(res) { log('ptz result: ' + JSON.stringify(res)); });
     }
     
     function ptzStop() {
-        if (!oWebControl || !currentPTZCamera) return;
-        oWebControl.JS_RequestInterface({ funcName: 'ptzStop', argument: JSON.stringify({ cameraIndexCode: currentPTZCamera.cameraIndexCode }) });
+        if (!oWebControl || !currentCameraIndexCode) return;
+        oWebControl.JS_RequestInterface({ funcName: 'ptzStop', argument: JSON.stringify({ cameraIndexCode: currentCameraIndexCode }) });
     }
-    
-    function setPTZCamera(camera) { currentPTZCamera = camera; log('ptz camera: ' + camera.cameraName); }
 
 
 </script>
