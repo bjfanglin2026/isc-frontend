@@ -215,7 +215,7 @@
     // ==================== 监控点列表 ====================
     function loadCameraList() {
         var username = sessionStorage.getItem('isc_user') || '';
-        var url = ISC_CONFIG.apiBase + '/cameras?pageNo=1&pageSize=100';
+        var url = ISC_CONFIG.apiBase + '/video/cameras?pageNo=1&pageSize=100';
         if (username) {
             url += '&username=' + encodeURIComponent(username);
         }
