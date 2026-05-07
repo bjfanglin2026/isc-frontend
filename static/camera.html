@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>摄像机管理 - 远陌云视频监控平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; min-height: 100vh; }
+        
+        /* 顶部导航 */
+        .header { background: #1a1a2e; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; }
+        .header-right { display: flex; gap: 20px; align-items: center; }
+        .header a { color: #8b8b8b; text-decoration: none; padding: 8px 15px; border-radius: 4px; }
+        .header a:hover, .header a.active { background: #16213e; color: white; }
+        
+        /* 主容器 */
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+        
+        /* 工具栏 */
+        .toolbar { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .toolbar h2 { width: 100%; margin-bottom: 10px; font-size: 18px; color: #333; }
+        .toolbar button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .btn-primary { background: #1890ff; color: white; }
+        .btn-primary:hover { background: #40a9ff; }
+        .btn-success { background: #52c41a; color: white; }
+        .btn-success:hover { background: #73d13d; }
+        
+        /* 搜索框 */
+        .search-box { display: flex; gap: 10px; margin-left: auto; }
+        .search-box input { padding: 8px 12px; border: 1px solid #d9d9d9; border-radius: 4px; width: 200px; }
+        .search-box button { padding: 8px 15px; background: #f0f0f0; border: 1px solid #d9d9d9; border-radius: 4px; cursor: pointer; }
+        
+        /* 表格 */
+        .table-wrapper { background: white; border-radius: 8px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+        th { background: #fafafa; font-weight: 500; color: #333; }
+        tr:hover { background: #fafafa; }
+        
+        /* 复选框 */
+        input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+        
+        /* 模态框 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; border-radius: 8px; padding: 30px; width: 500px; max-width: 90%; }
+        .modal-content h3 { margin-bottom: 20px; font-size: 18px; }
+        .modal-content .form-group { margin-bottom: 15px; }
+        .modal-content label { display: block; margin-bottom: 5px; color: #666; }
+        .modal-content select, .modal-content input { width: 100%; padding: 10px; border: 1px solid #d9d9d9; border-radius: 4px; }
+        .modal-content .btn-group { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        .modal-content .btn-group button { padding: 10px 25px; border: none; border-radius: 4px; cursor: pointer; }
+        .modal-content .btn-cancel { background: #f0f0f0; }
+        .modal-content .btn-confirm { background: #1890ff; color: white; }
+        
+        /* 用户列表 */
+        .user-list { max-height: 200px; overflow-y: auto; border: 1px solid #d9d9d9; border-radius: 4px; padding: 10px; }
+        .user-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-bottom: 1px solid #f0f0f0; }
+        .user-item:last-child { border-bottom: none; }
+        .user-item input { width: 16px; height: 16px; }
+        .user-item span { flex: 1; }
+        .user-item .role { font-size: 12px; color: #999; }
+        
+        /* 提示信息 */
+        .tips { background: #fffbe6; border: 1px solid #ffe58f; padding: 15px; border-radius: 4px; margin-bottom: 20px; color: #ad6800; font-size: 14px; }
+        
+        /* 加载状态 */
+        .loading { text-align: center; padding: 40px; color: #999; }
+        .loading::after { content: '...'; animation: dots 1.5s infinite; }
+        @keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60%, 100% { content: '...'; } }
+        
+        /* 成功/失败提示 */
+        .toast { position: fixed; top: 20px; right: 20px; padding: 15px 25px; border-radius: 4px; z-index: 2000; display: none; }
+        .toast.success { background: #52c41a; color: white; }
+        .toast.error { background: #ff4d4f; color: white; }
+        .toast.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎥 远陌云视频监控平台</h1>
+        <div class="header-right">
+            <a href="index.html">视频监控</a>
+            <a href="camera.html" class="active">摄像机管理</a>
+            <a href="admin.html">用户管理</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="tips">
+            💡 提示：同步摄像机列表会从ISC平台获取最新数据。分配摄像机给用户后，用户可以在视频监控页面看到被分配的摄像机。
+        </div>
+        
+        <div class="toolbar">
+            <h2>📷 摄像机列表</h2>
+            <button class="btn-primary" onclick="syncCameras()">🔄 同步ISC摄像机</button>
+            <button class="btn-success" onclick="showAssignModal()">👥 分配摄像机给用户</button>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索摄像机名称..." oninput="filterCameras()">
+                <button onclick="filterCameras()">搜索</button>
+            </div>
+        </div>
+        
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+                        <th>摄像机编号</th>
+                        <th>摄像机名称</th>
+                        <th>类型</th>
+                        <th>区域</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody id="cameraTable">
+                    <tr><td colspan="6" class="loading">正在加载摄像机数据</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- 分配用户模态框 -->
+    <div class="modal" id="assignModal">
+        <div class="modal-content">
+            <h3>分配摄像机给用户</h3>
+            <div class="form-group">
+                <label>选择用户</label>
+                <select id="userSelect" onchange="loadUserCameras()">
+                    <option value="">-- 请选择用户 --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>已选摄像机 (<span id="selectedCount">0</span>个)</label>
+                <div id="selectedCameras" style="color: #666; font-size: 13px; padding: 10px; background: #fafafa; border-radius: 4px;">请先选择摄像机</div>
+            </div>
+            <div class="form-group">
+                <label>该用户当前有权限的摄像机</label>
+                <div id="userCameras" class="user-list" style="background: #f9f9f9;">
+                    <div style="color: #999; text-align: center; padding: 20px;">请先选择用户</div>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn-cancel" onclick="closeAssignModal()">取消</button>
+                <button class="btn-confirm" onclick="assignCameras()">确认分配</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 提示框 -->
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        var cameras = [];
+        var users = [];
+        var selectedCameraIndexCodes = new Set();
+        var currentUserId = null;
+        
+        var API_BASE = 'http://120.46.240.61:8080/api';
+        
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCameras();
+            loadUsers();
+        });
+        
+        // 加载摄像机列表
+        function loadCameras() {
+            fetch(API_BASE + '/video/cameras?pageNo=1&pageSize=500')
+                .then(r => r.json())
+                .then(result => {
+                    if (result.success) {
+                        cameras = result.list || [];
+                        renderCameraTable(cameras);
+                    }
+                })
+                .catch(e => showToast('加载摄像机失败', 'error'));
+        }
+        
+        // 同步摄像机
+        function syncCameras() {
+            showToast('正在同步ISC摄像机...', 'success');
+            // 摄像机列表本身就从ISC获取，这里只是刷新显示
+            loadCameras();
+            showToast('同步成功，共 ' + cameras.length + ' 个摄像机', 'success');
+        }
+        
+        // 渲染表格
+        function renderCameraTable(data) {
+            var tbody = document.getElementById('cameraTable');
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;padding:40px;">暂无数据</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map(cam => '
+                <tr>
+                    <td><input type="checkbox" value="' + cam.cameraIndexCode + '" onchange="toggleCamera(this)"></td>
+                    <td>' + cam.cameraIndexCode + '</td>
+                    <td>' + cam.cameraName + '</td>
+                    <td>' + (cam.cameraTypeName || '球机') + '</td>
+                    <td>' + (cam.regionIndexCode || '-') + '</td>
+                    <td><span style="color:#52c41a;">● 在线</span></td>
+                </tr>
+            ').join('');
+        }
+        
+        // 搜索过滤
+        function filterCameras() {
+            var kw = document.getElementById('searchInput').value.toLowerCase();
+            if (!kw) {
+                renderCameraTable(cameras);
+                return;
+            }
+            var filtered = cameras.filter(c => 
+                c.cameraName.toLowerCase().includes(kw) || 
+                c.cameraIndexCode.toLowerCase().includes(kw)
+            );
+            renderCameraTable(filtered);
+        }
+        
+        // 全选/取消全选
+        function toggleSelectAll() {
+            var checked = document.getElementById('selectAll').checked;
+            var checkboxes = document.querySelectorAll('#cameraTable input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = checked;
+                if (checked) {
+                    selectedCameraIndexCodes.add(cb.value);
+                } else {
+                    selectedCameraIndexCodes.delete(cb.value);
+                }
+            });
+            updateSelectedCount();
+        }
+        
+        // 选择/取消单个摄像机
+        function toggleCamera(cb) {
+            if (cb.checked) {
+                selectedCameraIndexCodes.add(cb.value);
+            } else {
+                selectedCameraIndexCodes.delete(cb.value);
+            }
+            updateSelectedCount();
+        }
+        
+        // 更新已选数量
+        function updateSelectedCount() {
+            document.getElementById('selectedCount').textContent = selectedCameraIndexCodes.size;
+        }
+        
+        // 加载用户列表
+        function loadUsers() {
+            fetch(API_BASE + '/admin/users')
+                .then(r => r.json())
+                .then(result => {
+                    if (result.success) {
+                        users = result.list || [];
+                        renderUserSelect(users);
+                    }
+                })
+                .catch(e => showToast('加载用户列表失败', 'error'));
+        }
+        
+        // 渲染用户下拉框
+        function renderUserSelect(userList) {
+            var select = document.getElementById('userSelect');
+            select.innerHTML = '<option value="">-- 请选择用户 --</option>' + 
+                userList.map(u => '<option value="' + u.id + '">' + u.username + ' (' + u.displayName + ')</option>').join('');
+        }
+        
+        // 显示分配模态框
+        function showAssignModal() {
+            if (selectedCameraIndexCodes.size === 0) {
+                showToast('请先选择要分配的摄像机', 'error');
+                return;
+            }
+            
+            // 显示已选摄像机
+            var selectedNames = cameras.filter(c => selectedCameraIndexCodes.has(c.cameraIndexCode)).map(c => c.cameraName);
+            document.getElementById('selectedCameras').innerHTML = selectedNames.join(', ') || '已选择 ' + selectedCameraIndexCodes.size + ' 个摄像机';
+            
+            // 显示模态框
+            document.getElementById('assignModal').classList.add('active');
+        }
+        
+        // 关闭模态框
+        function closeAssignModal() {
+            document.getElementById('assignModal').classList.remove('active');
+        }
+        
+        // 加载用户当前的摄像机权限
+        function loadUserCameras() {
+            var userId = document.getElementById('userSelect').value;
+            currentUserId = userId;
+            
+            if (!userId) {
+                document.getElementById('userCameras').innerHTML = '<div style="color:#999;text-align:center;padding:20px;">请先选择用户</div>';
+                return;
+            }
+            
+            fetch(API_BASE + '/admin/user/' + userId + '/cameras')
+                .then(r => r.json())
+                .then(result => {
+                    if (result.success) {
+                        var list = result.list || [];
+                        if (list.length === 0) {
+                            document.getElementById('userCameras').innerHTML = '<div style="color:#999;text-align:center;padding:20px;">该用户暂无摄像机权限</div>';
+                        } else {
+                            document.getElementById('userCameras').innerHTML = list.map(c => '
+                                <div class="user-item">
+                                    <span>' + c.cameraName + '</span>
+                                    <span class="role">' + c.cameraIndexCode + '</span>
+                                </div>
+                            ').join('');
+                        }
+                    }
+                })
+                .catch(e => {
+                    document.getElementById('userCameras').innerHTML = '<div style="color:#f00;padding:20px;">加载失败</div>';
+                });
+        }
+        
+        // 确认分配
+        function assignCameras() {
+            var userId = document.getElementById('userSelect').value;
+            if (!userId) {
+                showToast('请选择用户', 'error');
+                return;
+            }
+            
+            if (selectedCameraIndexCodes.size === 0) {
+                showToast('请选择要分配的摄像机', 'error');
+                return;
+            }
+            
+            // 构建分配数据
+            var cameraList = Array.from(selectedCameraIndexCodes).map(code => {
+                var cam = cameras.find(c => c.cameraIndexCode === code);
+                return {
+                    cameraIndexCode: code,
+                    cameraName: cam ? cam.cameraName : code
+                };
+            });
+            
+            fetch(API_BASE + '/admin/user/' + userId + '/cameras', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cameras: cameraList })
+            })
+            .then(r => r.json())
+            .then(result => {
+                if (result.success) {
+                    showToast('分配成功！', 'success');
+                    closeAssignModal();
+                    
+                    // 清空选择
+                    selectedCameraIndexCodes.clear();
+                    document.getElementById('selectAll').checked = false;
+                    document.querySelectorAll('#cameraTable input[type="checkbox"]').forEach(cb => cb.checked = false);
+                    updateSelectedCount();
+                } else {
+                    showToast(result.msg || '分配失败', 'error');
+                }
+            })
+            .catch(e => {
+                showToast('分配失败: ' + e, 'error');
+            });
+        }
+        
+        // 显示提示
+        function showToast(msg, type) {
+            var toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast ' + type + ' show';
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
