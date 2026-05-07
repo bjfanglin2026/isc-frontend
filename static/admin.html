@@ -183,7 +183,7 @@
     let cameraPanelUserId = null;
 
     function checkLogin() {
-        const saved = sessionStorage.getItem('isc_admin_user');
+        const saved = sessionStorage.getItem('isc_user');
         if (saved) {
             currentUser = JSON.parse(saved);
             showUserPanel();
@@ -241,7 +241,7 @@
         const data = await res.json();
         if (data.success) {
             currentUser = data.user;
-            sessionStorage.setItem('isc_admin_user', JSON.stringify(currentUser));
+            sessionStorage.setItem('isc_user', JSON.stringify(currentUser));
             hideLoginModal();
             showUserPanel();
             loadUsers();
@@ -251,7 +251,7 @@
     }
 
     function handleLogout() {
-        sessionStorage.removeItem('isc_admin_user');
+        sessionStorage.removeItem('isc_user');
         currentUser = null;
         showLoginTip();
     }
