@@ -146,16 +146,22 @@
     
     var ISC_CONFIG = {
         apiBase: '/api',
-        platform: {
-            host: '172.16.18.85',
-            port: 443,
-            appKey: '27133966',
-            appSecret: 'aTbADLtEFsjhSHCNIXuO'
-        }
+        platform: null  // Loaded from backend
     };
     
+    // Load ISC config from backend
+    async function loadIscConfig() {
+        try {
+            const res = await fetch(ISC_CONFIG.apiBase + '/config/isc');
+            ISC_CONFIG.platform = await res.json();
+            console.log('ISC config loaded');
+        } catch (e) {
+            console.error('Failed to load ISC config:', e);
+        }
+    }
+    
     // ==================== 登录 ====================
-    function handleLogin() {
+    async function handleLogin() {
         var username = document.getElementById('username').value;
         var password = document.getElementById('password').value;
         if (!username || !password) {
@@ -251,7 +257,13 @@
     }
     
     // ==================== 插件初始化 ====================
-    function initPlugin() {
+    async function initPlugin() {
+        // Wait for config to be loaded
+        if (!ISC_CONFIG.platform) {
+            log('Loading ISC config...');
+            await loadIscConfig();
+        }
+        
         if (oWebControl) {
             try { oWebControl.JS_Disconnect(); } catch(e) {}
             oWebControl = null;
@@ -511,7 +523,10 @@ function setPluginLayout(num, btn) {
         updateTime();
         setInterval(updateTime, 1000);
         
-        if (sessionStorage.getItem('isc_logged_in') === 'true') {
+        // Pre-load ISC config on page load
+loadIscConfig();
+
+if (sessionStorage.getItem('isc_logged_in') === 'true') {
             var savedUser = sessionStorage.getItem('isc_user') || 'admin';
             document.getElementById('currentUser').textContent = savedUser;
             document.getElementById('loginModal').classList.add('hidden');
