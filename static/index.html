@@ -47,10 +47,6 @@
         .empty-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #555; font-size: 14px; text-align: center; }
         
         .status-bar { background: #16213e; padding: 8px 20px; font-size: 12px; color: #888; display: flex; justify-content: space-between; }
-        .debug-panel { position: fixed; bottom: 10px; right: 10px; width: 400px; max-height: 300px; background: rgba(0,0,0,0.9); border: 1px solid #0f3460; border-radius: 8px; padding: 10px; font-size: 12px; color: #0f0; overflow-y: auto; z-index: 9999; display: none; }
-        .debug-panel.show { display: block; }
-        .debug-panel .title { color: #00d9ff; font-weight: bold; margin-bottom: 5px; cursor: pointer; }
-        .debug-panel .close-btn { float: right; cursor: pointer; color: #e94560; }
         .status-indicator { display: flex; align-items: center; gap: 6px; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; }
         .status-dot.green { background: #4ade80; }
@@ -505,7 +501,6 @@ function setPluginLayout(num, btn) {
         console.log(msg);
     }
     function toggleDebug() {
-        document.getElementById('debugPanel').classList.toggle('show');
     }
 
     // ==================== 页面加载 ====================
@@ -527,10 +522,8 @@ function setPluginLayout(num, btn) {
         }
     });
     </script>
-<div class="debug-panel" id="debugPanel">
-            <div class="title" onclick="toggleDebug()">调试面板 <span class="close-btn" onclick="event.stopPropagation(); document.getElementById(''debugPanel').classList.remove(''show'');">X</span></div>
+
             <div id="debugLog"></div>
         </div>
-        <div style="position:fixed;bottom:10px;right:10px;z-index:9998;" onclick="document.getElementById(''debugPanel').classList.toggle(''show'');">[D]</div>
         </body>
 </html>
