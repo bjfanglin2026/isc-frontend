@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>远陌云视频监控平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #eee; }
+        
+        .header { background: #16213e; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #0f3460; }
+        .header h1 { font-size: 20px; color: #00d9ff; }
+        
+        .main-container { display: flex; height: calc(100vh - 60px); }
+        
+        .sidebar { width: 280px; background: #16213e; border-right: 1px solid #0f3460; overflow-y: auto; }
+        .sidebar-header { padding: 15px; border-bottom: 1px solid #0f3460; }
+        .sidebar-header h2 { font-size: 14px; color: #00d9ff; margin-bottom: 10px; }
+        .search-input { width: 100%; padding: 8px 12px; border: 1px solid #0f3460; border-radius: 4px; background: #1a1a2e; color: #eee; font-size: 13px; }
+        .camera-list { padding: 10px; }
+        .camera-item { padding: 12px; margin-bottom: 8px; background: #1a1a2e; border-radius: 6px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
+        .camera-item:hover { border-color: #00d9ff; }
+        .camera-item.selected { border-color: #00d9ff; background: #0f3460; }
+        .camera-item .name { font-size: 14px; margin-bottom: 4px; }
+        .camera-item .type { font-size: 12px; color: #888; }
+        
+        .video-area { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+        
+        .toolbar { background: #16213e; padding: 10px 20px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #0f3460; }
+        .toolbar button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+        .btn-layout { background: #0f3460; color: #eee; }
+        .btn-layout:hover { background: #00d9ff; color: #1a1a2e; }
+        .btn-layout.active { background: #00d9ff; color: #1a1a2e; }
+        .btn-control { background: #e94560; color: #fff; }
+        .btn-control:hover { background: #ff6b6b; }
+        
+        .video-container { flex: 1; display: flex; align-items: stretch; padding: 0; }
+        .video-wrapper { width: 100%; height: 100%; display: flex; flex-direction: column; }
+        
+        .play-window { background: #0a0a15; border: 2px solid #0f3460; border-radius: 8px; position: relative; display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+        .play-window.active { border-color: #00d9ff; }
+        .plugin-div { flex: 1; position: relative; width: 100%; height: 100%; min-height: 0; }
+        .play-window .window-label { position: absolute; top: 10px; left: 10px; background: rgba(0,217,255,0.2); padding: 4px 8px; border-radius: 4px; font-size: 12px; color: #00d9ff; z-index: 10; }
+        .play-window .camera-name-bar { background: rgba(0,0,0,0.7); padding: 8px 12px; font-size: 13px; text-align: center; border-top: 1px solid #0f3460; }
+        
+        .empty-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #555; font-size: 14px; text-align: center; }
+        
+        .status-bar { background: #16213e; padding: 8px 20px; font-size: 12px; color: #888; display: flex; justify-content: space-between; }
+        .status-indicator { display: flex; align-items: center; gap: 6px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .status-dot.green { background: #4ade80; }
+        .status-dot.yellow { background: #facc15; }
+        .status-dot.red { background: #ef4444; }
+        
+        .login-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .login-box { background: #16213e; padding: 40px; border-radius: 12px; width: 360px; border: 1px solid #0f3460; }
+        .login-box h2 { text-align: center; margin-bottom: 30px; color: #00d9ff; }
+        .login-box input { width: 100%; padding: 12px 15px; margin-bottom: 15px; border: 1px solid #0f3460; border-radius: 6px; background: #1a1a2e; color: #eee; font-size: 14px; }
+        .login-box button { width: 100%; padding: 12px; background: #00d9ff; border: none; border-radius: 6px; color: #1a1a2e; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .login-box button:hover { background: #00b8d9; }
+        
+        .hidden { display: none !important; }
+        
+        .camera-item-btn { background: none; border: none; color: #eee; cursor: pointer; text-align: left; width: 100%; padding: 0; }
+    </style>
+</head>
+<body>
+    <!-- 登录弹窗 -->
+    <div id="loginModal" class="login-modal">
+        <div class="login-box">
+            <h2>🎥 远陌云视频监控平台</h2>
+            <input type="text" id="username" placeholder="用户名" value="admin">
+            <input type="password" id="password" placeholder="密码" value="admin123">
+            <button onclick="handleLogin()">登录</button>
+        </div>
+    </div>
+    
+    <!-- 主界面 -->
+    <div id="mainUI" class="hidden">
+        <div class="header">
+            <h1>🎥 远陌云视频监控平台</h1>
+            <div>
+                <span id="currentUser" style="font-size:14px;color:#888;margin-right:15px;"></span>
+                <a href="admin.html" id="adminLink" style="display:none;color:#00d9ff;margin-right:15px;">用户管理</a>
+                <a href="#" onclick="handleLogout()" style="color:#e94560;font-size:14px;">退出</a>
+            </div>
+        </div>
+        
+        <div class="main-container">
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h2>📹 监控点列表</h2>
+                    <input type="text" class="search-input" placeholder="搜索监控点..." id="searchCamera" oninput="filterCameras()">
+                </div>
+                <div class="camera-list" id="cameraList"></div>
+            </div>
+            
+            <div class="video-area">
+                <div class="toolbar">
+                    <div style="flex:1;"></div>
+                    <button class="btn-control" onclick="playAll()">播放全部</button>
+                    <button class="btn-control" onclick="stopAllPreview()">停止全部</button>
+                </div>
+                
+                <div class="video-container">
+                    <div class="video-wrapper">
+                        <div class="play-window active" id="playWnd">
+                            <div class="window-label">窗口 1</div>
+                            <div class="plugin-div" id="pluginContainer">
+                                <div class="empty-hint" id="emptyHint">点击左侧监控点开始预览</div>
+                            </div>
+                            <div class="camera-name-bar" id="cameraNameBar" style="display:none;"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="status-bar">
+                    <div class="status-indicator">
+                        <div class="status-dot red" id="pluginStatusDot"></div>
+                        <span id="pluginStatusText">插件未初始化</span>
+                    </div>
+                    <div id="currentTime"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="./js/jsencrypt.min.js"></script>
+    <script src="./js/web-control.min.js"></script>
+    
+    <script>
+    // ==================== 全局变量 ====================
+    var oWebControl = null;
+    var currentLayout = 1;
+    var currentCameraIndexCode = null;
+    var allCameras = [];
+    var initCount = 0;
+    var pubKey = '';
+    
+    var ISC_CONFIG = {
+        apiBase: '/api/video',
+        platform: {
+            host: '172.16.18.85',
+            port: 443,
+            appKey: '27133966',
+            appSecret: 'aTbADLtEFsjhSHCNIXuO'
+        }
+    };
+    
+    // ==================== 登录 ====================
+    function handleLogin() {
+        var username = document.getElementById('username').value;
+        var password = document.getElementById('password').value;
+        if (username && password) {
+            sessionStorage.setItem('isc_logged_in', 'true');
+            sessionStorage.setItem('isc_user', username);
+            document.getElementById('currentUser').textContent = username;
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('mainUI').classList.remove('hidden');
+            loadCameraList();
+            // 自动初始化插件
+            setTimeout(initPlugin, 500);
+        }
+    }
+    
+    function handleLogout() {
+        sessionStorage.removeItem('isc_logged_in');
+        sessionStorage.removeItem('isc_user');
+        if (oWebControl) {
+            try { oWebControl.JS_Disconnect(); } catch(e) {}
+            oWebControl = null;
+        }
+        document.getElementById('loginModal').classList.remove('hidden');
+        document.getElementById('mainUI').classList.add('hidden');
+    }
+    
+    // ==================== 监控点列表 ====================
+    function loadCameraList() {
+        fetch(ISC_CONFIG.apiBase + '/cameras?pageNo=1&pageSize=100')
+            .then(function(r) { return r.json(); })
+            .then(function(result) {
+                if (result.success && result.list) {
+                    allCameras = result.list;
+                    renderCameraList(allCameras);
+                }
+            })
+            .catch(function(e) { console.error('加载监控点列表失败:', e); });
+    }
+    
+    function renderCameraList(cameras) {
+        var list = document.getElementById('cameraList');
+        list.innerHTML = cameras.map(function(cam) {
+            return '<div class="camera-item' + (cam.cameraIndexCode === currentCameraIndexCode ? ' selected' : '') + '" onclick="selectCamera(\'' + cam.cameraIndexCode + '\', \'' + cam.cameraName.replace(/'/g, "\\'") + '\')">' +
+                '<button class="camera-item-btn"><div class="name">' + cam.cameraName + '</div>' +
+                '<div class="type">' + (cam.cameraTypeName || '球机') + '</div></button></div>';
+        }).join('');
+    }
+    
+    function filterCameras() {
+        var kw = document.getElementById('searchCamera').value.toLowerCase();
+        var filtered = allCameras.filter(function(cam) {
+            return cam.cameraName.toLowerCase().indexOf(kw) >= 0 ||
+                   (cam.cameraIndexCode && cam.cameraIndexCode.toLowerCase().indexOf(kw) >= 0);
+        });
+        renderCameraList(filtered);
+    }
+    
+    // ==================== 插件初始化 ====================
+    function initPlugin() {
+        if (oWebControl) {
+            try { oWebControl.JS_Disconnect(); } catch(e) {}
+            oWebControl = null;
+        }
+        
+        updatePluginStatus('yellow', '正在初始化...');
+        
+        oWebControl = new WebControl({
+            szPluginContainer: 'pluginContainer',
+            iServicePortStart: 15900,
+            iServicePortEnd: 15900,
+            szClassId: '23BF3B0A-2C56-4D97-9C03-0CB103AA8F11',
+            cbConnectSuccess: function() {
+                console.log('插件连接成功');
+                oWebControl.JS_StartService('window', {
+                    dllPath: './VideoPluginConnect.dll'
+                }).then(function() {
+                    oWebControl.JS_SetWindowControlCallback({
+                        cbIntegrationCallBack: cbIntegrationCallBack
+                    });
+                    var container = document.getElementById('pluginContainer');
+                    // 延迟创建，确保容器已渲染
+                    setTimeout(function() {
+                        // 使用offsetWidth/Height获取实际渲染尺寸
+                        var w = container.offsetWidth || 800;
+                        var h = container.offsetHeight || 600;
+                        console.log('创建窗口尺寸:', w, h);
+                        oWebControl.JS_CreateWnd('pluginContainer', w, h).then(function() {
+                            console.log('窗口创建成功');
+                            // 窗口创建后调用resize适应容器
+                            oWebControl.JS_Resize(w, h);
+                            getPubKey(function() {
+                                init();
+                            });
+                        }, function(err) {
+                            console.log('窗口创建失败:', err);
+                            updatePluginStatus('red', '窗口创建失败');
+                        });
+                    }, 500);
+                }, function() {
+                    updatePluginStatus('red', '插件服务启动失败');
+                });
+            },
+            cbConnectError: function() {
+                console.log('插件连接失败');
+                updatePluginStatus('red', '插件未安装或启动失败');
+                oWebControl = null;
+                WebControl.JS_WakeUp('VideoWebPlugin://');
+                initCount++;
+                if (initCount < 3) {
+                    setTimeout(initPlugin, 3000);
+                }
+            },
+            cbConnectClose: function() {
+                console.log('插件连接关闭');
+                oWebControl = null;
+                updatePluginStatus('red', '插件连接断开');
+            }
+        });
+    }
+    
+    function getPubKey(callback) {
+        oWebControl.JS_RequestInterface({
+            funcName: 'getRSAPubKey',
+            argument: JSON.stringify({ keyLength: 1024 })
+        }).then(function(oData) {
+            console.log('获取RSA公钥:', oData);
+            try {
+                var jsonData = typeof oData.responseMsg === 'string' ? JSON.parse(oData.responseMsg) : oData.responseMsg;
+                if (jsonData.code === 0) {
+                    pubKey = jsonData.data;
+                    callback && callback();
+                }
+            } catch(e) {
+                console.error('解析公钥失败:', e);
+            }
+        });
+    }
+    
+    function setEncrypt(text) {
+        var encrypt = new JSEncrypt();
+        encrypt.setPublicKey(pubKey);
+        return encrypt.encrypt(text);
+    }
+    
+    function init() {
+        var config = ISC_CONFIG.platform;
+        oWebControl.JS_RequestInterface({
+            funcName: 'init',
+            argument: JSON.stringify({
+                appkey: config.appKey,
+                secret: setEncrypt(config.appSecret),
+                ip: config.host,
+                port: config.port,
+                playMode: 0,
+                enableHTTPS: 1,
+                encryptedFields: 'secret',
+                layout: '1x1',
+                showToolbar: 1,
+                buttonIDs: '0,16,256,257,258,259,260,512,513,514,515,516,517'
+            })
+        }).then(function(oData) {
+            console.log('初始化结果:', oData);
+            var code = oData.errorCode;
+            if (code === 0) {
+                updatePluginStatus('green', '插件就绪');
+            } else {
+                updatePluginStatus('red', '初始化失败: ' + code);
+            }
+        });
+    }
+    
+    // ==================== 视频预览 ====================
+    function selectCamera(cameraIndexCode, cameraName) {
+        currentCameraIndexCode = cameraIndexCode;
+        
+        // 更新列表选中状态
+        renderCameraList(allCameras);
+        
+        // 更新名称显示
+        document.getElementById('cameraNameBar').style.display = 'block';
+        document.getElementById('cameraNameBar').textContent = cameraName;
+        document.getElementById('emptyHint').style.display = 'none';
+        
+        if (!oWebControl) {
+            alert('插件未初始化，请先点击"初始化插件"');
+            return;
+        }
+        
+        // 开始新预览（不清除之前的画面）
+        startPreview(cameraIndexCode);
+    }
+    
+    function startPreview(cameraIndexCode) {
+        oWebControl.JS_RequestInterface({
+            funcName: 'startPreview',
+            argument: JSON.stringify({
+                cameraIndexCode: cameraIndexCode,
+                streamMode: 0,
+                transMode: 1
+            })
+        }).then(function(oData) {
+            console.log('预览结果:', oData);
+            if (oData.errorCode !== 0) {
+                alert('预览失败: ' + (oData.responseMsg && oData.responseMsg.msg || oData.errorCode));
+            }
+        });
+    }
+    
+    function stopAllPreview(callback) {
+        if (oWebControl) {
+            oWebControl.JS_RequestInterface({
+                funcName: 'stopAllPreview'
+            }).then(function() {
+                currentCameraIndexCode = null;
+                document.getElementById('emptyHint').style.display = 'block';
+                document.getElementById('cameraNameBar').style.display = 'none';
+                renderCameraList(allCameras);
+                callback && callback();
+            });
+        } else {
+            callback && callback();
+        }
+    }
+    
+    function setLayout(layout) {
+        currentLayout = layout;
+        document.querySelectorAll('.btn-layout').forEach(function(btn) {
+            btn.classList.toggle('active', parseInt(btn.dataset.layout) === layout);
+        });
+    }
+    
+    function cbIntegrationCallBack(oData) {
+        console.log('插件消息:', JSON.stringify(oData));
+    }
+    
+    function updatePluginStatus(color, text) {
+        var dot = document.getElementById('pluginStatusDot');
+        dot.className = 'status-dot ' + color;
+        document.getElementById('pluginStatusText').textContent = text;
+    }
+    
+    // ==================== 播放全部 ====================
+    function playAll() {
+        if (!oWebControl) {
+            alert('插件未初始化');
+            return;
+        }
+        // 停止当前所有预览
+        oWebControl.JS_RequestInterface({ funcName: 'stopAllPreview' });
+        // 为前4个窗口选择监控点
+        var wndIndex = 0;
+        for (var i = 0; i < allCameras.length && wndIndex < 4; i++) {
+            (function(idx, camera) {
+                setTimeout(function() {
+                    oWebControl.JS_RequestInterface({
+                        funcName: 'startPreview',
+                        argument: JSON.stringify({
+                            cameraIndexCode: camera.cameraIndexCode,
+                            streamMode: 0,
+                            transMode: 1,
+                            wndIndex: idx
+                        })
+                    });
+                }, idx * 300);
+            })(wndIndex, allCameras[i]);
+            wndIndex++;
+        }
+    }
+
+    // ==================== 页面加载 ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        function updateTime() {
+            document.getElementById('currentTime').textContent = new Date().toLocaleString('zh-CN');
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+        
+        if (sessionStorage.getItem('isc_logged_in') === 'true') {
+            var savedUser = sessionStorage.getItem('isc_user') || 'admin';
+            document.getElementById('currentUser').textContent = savedUser;
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('mainUI').classList.remove('hidden');
+            loadCameraList();
+            // 自动初始化插件
+            setTimeout(initPlugin, 500);
+        }
+    });
+    </script>
+</body>
+</html>
