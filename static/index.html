@@ -47,6 +47,10 @@
         .empty-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #555; font-size: 14px; text-align: center; }
         
         .status-bar { background: #16213e; padding: 8px 20px; font-size: 12px; color: #888; display: flex; justify-content: space-between; }
+        .debug-panel { position: fixed; bottom: 10px; right: 10px; width: 400px; max-height: 300px; background: rgba(0,0,0,0.9); border: 1px solid #0f3460; border-radius: 8px; padding: 10px; font-size: 12px; color: #0f0; overflow-y: auto; z-index: 9999; display: none; }
+        .debug-panel.show { display: block; }
+        .debug-panel .title { color: #00d9ff; font-weight: bold; margin-bottom: 5px; cursor: pointer; }
+        .debug-panel .close-btn { float: right; cursor: pointer; color: #e94560; }
         .status-indicator { display: flex; align-items: center; gap: 6px; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; }
         .status-dot.green { background: #4ade80; }
@@ -71,7 +75,7 @@
         <div class="login-box">
             <h2>🎥 远陌云视频监控平台</h2>
             <input type="text" id="username" placeholder="用户名" value="admin">
-            <input type="password" id="password" placeholder="密码" value="admin123">
+            <input type="password" id="password" placeholder="密码" value="admin123" onkeydown="if(event.key==='Enter')handleLogin()">
             <button onclick="handleLogin()">登录</button>
         </div>
     </div>
@@ -98,6 +102,11 @@
             
             <div class="video-area">
                 <div class="toolbar">
+                    <span style="color:#888;font-size:13px;">画面：</span>
+                    <button class="btn-layout active" onclick="setPluginLayout(1, this)">单画面</button>
+                    <button class="btn-layout" onclick="setPluginLayout(4, this)">四画面</button>
+                    <button class="btn-layout" onclick="setPluginLayout(9, this)">九画面</button>
+                    <button class="btn-layout" onclick="setPluginLayout(16, this)">十六画面</button>
                     <div style="flex:1;"></div>
                     <button class="btn-control" onclick="playAll()">播放全部</button>
                     <button class="btn-control" onclick="stopAllPreview()">停止全部</button>
@@ -221,7 +230,7 @@
             iServicePortEnd: 15900,
             szClassId: '23BF3B0A-2C56-4D97-9C03-0CB103AA8F11',
             cbConnectSuccess: function() {
-                console.log('插件连接成功');
+                log('插件连接成功');
                 oWebControl.JS_StartService('window', {
                     dllPath: './VideoPluginConnect.dll'
                 }).then(function() {
@@ -234,9 +243,9 @@
                         // 使用offsetWidth/Height获取实际渲染尺寸
                         var w = container.offsetWidth || 800;
                         var h = container.offsetHeight || 600;
-                        console.log('创建窗口尺寸:', w, h);
+                        log('创建窗口尺寸: ' + w + 'x' + h);
                         oWebControl.JS_CreateWnd('pluginContainer', w, h).then(function() {
-                            console.log('窗口创建成功');
+                            log('窗口创建成功');
                             // 窗口创建后调用resize适应容器
                             oWebControl.JS_Resize(w, h);
                             getPubKey(function() {
@@ -274,7 +283,7 @@
             funcName: 'getRSAPubKey',
             argument: JSON.stringify({ keyLength: 1024 })
         }).then(function(oData) {
-            console.log('获取RSA公钥:', oData);
+            log('获取RSA公钥成功');
             try {
                 var jsonData = typeof oData.responseMsg === 'string' ? JSON.parse(oData.responseMsg) : oData.responseMsg;
                 if (jsonData.code === 0) {
@@ -305,7 +314,7 @@
                 playMode: 0,
                 enableHTTPS: 1,
                 encryptedFields: 'secret',
-                layout: '1x1',
+                layout: '2x2',
                 showToolbar: 1,
                 buttonIDs: '0,16,256,257,258,259,260,512,513,514,515,516,517'
             })
@@ -390,6 +399,32 @@
         document.getElementById('pluginStatusText').textContent = text;
     }
     
+    // ==================== 画面布局 ====================
+function setPluginLayout(num, btn) {
+        // 更新按钮状态
+        document.querySelectorAll('.btn-layout').forEach(function(b) {
+            b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        
+        // 转换数字到布局字符串
+        var layoutMap = {1: '1x1', 4: '2x2', 9: '3x3', 16: '4x4'};
+        var layout = layoutMap[num] || '2x2';
+        
+        // 调用插件API设置布局
+        if (oWebControl) {
+            log('切换画面布局: ' + layout);
+            oWebControl.JS_RequestInterface({
+                funcName: 'setLayout',
+                argument: JSON.stringify({ layout: layout })
+            }).then(function(res) {
+                log('setLayout结果: ' + JSON.stringify(res));
+            });
+        } else {
+            alert('插件未初始化');
+        }
+    }
+
     // ==================== 播放全部 ====================
     function playAll() {
         if (!oWebControl) {
@@ -418,6 +453,22 @@
         }
     }
 
+    // ==================== 调试面板 ====================
+    function log(msg) {
+        var logDiv = document.getElementById('debugLog');
+        if (logDiv) {
+            var time = new Date().toLocaleTimeString();
+            logDiv.innerHTML = '<div>[' + time + '] ' + msg + '</div>' + logDiv.innerHTML;
+            if (logDiv.children.length > 50) {
+                logDiv.removeChild(logDiv.lastChild);
+            }
+        }
+        console.log(msg);
+    }
+    function toggleDebug() {
+        document.getElementById('debugPanel').classList.toggle('show');
+    }
+
     // ==================== 页面加载 ====================
     document.addEventListener('DOMContentLoaded', function() {
         function updateTime() {
@@ -437,5 +488,10 @@
         }
     });
     </script>
-</body>
+<div class="debug-panel" id="debugPanel">
+            <div class="title" onclick="toggleDebug()">调试面板 <span class="close-btn" onclick="event.stopPropagation(); document.getElementById(''debugPanel').classList.remove(''show'');">X</span></div>
+            <div id="debugLog"></div>
+        </div>
+        <div style="position:fixed;bottom:10px;right:10px;z-index:9998;" onclick="document.getElementById(''debugPanel').classList.toggle(''show'');">[D]</div>
+        </body>
 </html>
