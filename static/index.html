@@ -86,6 +86,7 @@
             <h1>🎥 远陌云视频监控平台</h1>
             <div>
                 <span id="currentUser" style="font-size:14px;color:#888;margin-right:15px;"></span>
+                <a href="camera.html" id="cameraLink" style="display:none;color:#00d9ff;margin-right:15px;">摄像机管理</a>
                 <a href="admin.html" id="adminLink" style="display:none;color:#00d9ff;margin-right:15px;">用户管理</a>
                 <a href="#" onclick="handleLogout()" style="color:#e94560;font-size:14px;">退出</a>
             </div>
@@ -161,16 +162,43 @@
     function handleLogin() {
         var username = document.getElementById('username').value;
         var password = document.getElementById('password').value;
-        if (username && password) {
-            sessionStorage.setItem('isc_logged_in', 'true');
-            sessionStorage.setItem('isc_user', username);
-            document.getElementById('currentUser').textContent = username;
-            document.getElementById('loginModal').classList.add('hidden');
-            document.getElementById('mainUI').classList.remove('hidden');
-            loadCameraList();
-            // 自动初始化插件
-            setTimeout(initPlugin, 500);
+        if (!username || !password) {
+            alert('请输入用户名和密码');
+            return;
         }
+        
+        // 调用登录API
+        fetch(ISC_CONFIG.apiBase + '/admin/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username, password: password })
+        })
+        .then(r => r.json())
+        .then(result => {
+            if (result.success) {
+                sessionStorage.setItem('isc_logged_in', 'true');
+                sessionStorage.setItem('isc_user', username);
+                sessionStorage.setItem('isc_role', result.user ? result.user.role : 'USER');
+                document.getElementById('currentUser').textContent = username;
+                document.getElementById('loginModal').classList.add('hidden');
+                document.getElementById('mainUI').classList.remove('hidden');
+                
+                // 根据角色显示管理链接
+                var role = result.user ? result.user.role : 'USER';
+                if (role === 'ADMIN') {
+                    document.getElementById('cameraLink').style.display = '';
+                    document.getElementById('adminLink').style.display = '';
+                }
+                
+                loadCameraList();
+                setTimeout(initPlugin, 500);
+            } else {
+                alert(result.msg || '登录失败');
+            }
+        })
+        .catch(e => {
+            alert('登录请求失败: ' + e);
+        });
     }
     
     function handleLogout() {
