@@ -562,19 +562,50 @@ function setPluginLayout(num, btn) {
         }
     });
     
+    // 云台控制
     function ptzControl(direction) {
-        if (!oWebControl) { log('plugin not init'); return; }
         if (!currentCameraIndexCode) { log('请先选择摄像机'); return; }
-        log('ptz: dir=' + direction + ' camera=' + currentCameraIndexCode);
-        oWebControl.JS_RequestInterface({
-            funcName: 'ptzControl',
-            argument: JSON.stringify({ cameraIndexCode: currentCameraIndexCode, direction: direction, speed: 1, presetIndex: 0 })
-        }).then(function(res) { log('ptz result: ' + JSON.stringify(res)); });
+        
+        // direction: 1=上, 2=下, 3=左, 4=右, 9=放大, 10=缩小
+        var cmdMap = {1: 'UP', 2: 'DOWN', 3: 'LEFT', 4: 'RIGHT', 9: 'ZOOMIN', 10: 'ZOOMOUT'};
+        var command = cmdMap[direction];
+        if (!command) { log('未知方向: ' + direction); return; }
+        
+        log('ptz: ' + command + ' camera=' + currentCameraIndexCode);
+        
+        fetch(ISC_CONFIG.apiBase + '/video/ptz/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                cameraIndexCode: currentCameraIndexCode,
+                action: 1,
+                command: command,
+                speed: 1,
+                presetIndex: 0
+            })
+        })
+        .then(r => r.json())
+        .then(res => { log('ptz result: ' + JSON.stringify(res)); })
+        .catch(e => { log('ptz error: ' + e); });
     }
     
     function ptzStop() {
-        if (!oWebControl || !currentCameraIndexCode) return;
-        oWebControl.JS_RequestInterface({ funcName: 'ptzStop', argument: JSON.stringify({ cameraIndexCode: currentCameraIndexCode }) });
+        if (!currentCameraIndexCode) return;
+        
+        fetch(ISC_CONFIG.apiBase + '/video/ptz/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                cameraIndexCode: currentCameraIndexCode,
+                action: 0,
+                command: 'STOP',
+                speed: 0,
+                presetIndex: 0
+            })
+        })
+        .then(r => r.json())
+        .then(res => { log('ptz stop: ' + JSON.stringify(res)); })
+        .catch(e => { log('ptz stop error: ' + e); });
     }
 
 
